@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Daily Diary</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        
+        .fade-in { animation: fadeIn 0.3s ease-in; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body class="bg-slate-100 text-slate-800 min-h-screen flex flex-col">
+
+    <!-- Navbar -->
+    <nav class="bg-white border-b border-slate-200 shadow-sm sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16 items-center">
+                <div class="flex items-center gap-3">
+                    <div class="bg-indigo-600 text-white p-2 rounded-lg">
+                        <i class="fa-solid fa-brain"></i>
+                    </div>
+                    <h1 class="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-purple-600">
+                        CogniLog <span class="text-xs font-medium text-slate-500 ml-1">AI Diary</span>
+                    </h1>
+                </div>
+                <div class="flex items-center gap-4">
+                    <button onclick="exportData()" class="text-slate-500 hover:text-indigo-600 transition text-sm font-medium" title="Download Backup">
+                        <i class="fa-solid fa-download mr-1"></i> Export
+                    </button>
+                    <button onclick="toggleViewMode()" id="viewModeBtn" class="text-slate-500 hover:text-indigo-600 transition text-sm font-medium">
+                        <i class="fa-solid fa-moon"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="flex-grow container mx-auto px-4 py-8 grid grid-cols-1 lg:grid-cols-12 gap-8">
+        
+        <!-- Left Column: Editor -->
+        <div class="lg:col-span-7 flex flex-col gap-6">
+            
+            <!-- Date & Mood Header -->
+            <div class="bg-white rounded-2xl shadow-sm p-6 border border-slate-100">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
+                    <div class="w-full sm:w-auto">
+                        <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Entry Date</label>
+                        <input type="date" id="entryDate" class="w-full sm:w-auto bg-slate-50 border border-slate-200 text-slate-700 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium">
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="clearForm()" class="px-4 py-2 text-sm text-slate-500 hover:bg-slate-50 rounded-lg transition">Clear</button>
+                        <button onclick="saveEntry()" class="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg shadow-md shadow-indigo-200 transition font-medium flex items-center gap-2">
+                            <i class="fa-solid fa-floppy-disk"></i> Save Entry
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Editor Area -->
+                <div class="relative">
+                    <textarea id="entryContent" class="w-full h-96 p-4 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none text-slate-700 leading-relaxed text-lg" placeholder="What's on your mind today? Write about your activities, feelings, or ideas..."></textarea>
+                    <div class="absolute bottom-4 right-4 text-xs text-slate-400" id="wordCount">0 words</div>
+                </div>
+            </div>
+
+            <!-- AI Insight Panel (Generated on Save/Analyze) -->
+            <div id="aiPanel" class="hidden bg-gradient-to-br from-indigo-50 to-purple-50 rounded-2xl border border-indigo-100 p-6 fade-in">
+                <div class="flex items-center gap-2 mb-4">
+                    <i class="fa-solid fa-wand-magic-sparkles text-indigo-600"></i>
+                    <h3 class="font-bold text-indigo-900">AI Analysis & Insights</h3>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <!-- Keywords -->
+                    <div class="bg-white/60 p-4 rounded-xl border border-white/50">
+                        <h4 class="text-xs font-bold text-slate-500 uppercase mb-2">Key Topics</h4>
+                        <div id="keywordTags" class="flex flex-wrap gap-2"></div>
+                    </div>
+                    <!-- Sentiment -->
+                    <div class="bg-white/60 p-4 rounded-xl border border-white/50">
+                        <h4 class="text-xs font-bold text-slate-500 uppercase mb-2">Mood Detected</h4>
+                        <div class="flex items-center gap-3">
+                            <span id="sentimentIcon" class="text-2xl">😐</span>
+                            <div class="w-full bg-slate-200 rounded-full h-2.5">
+                                <div id="sentimentBar" class="bg-indigo-600 h-2.5 rounded-full" style="width: 50%"></div>
+                            </div>
+                            <span id="sentimentLabel" class="text-sm font-medium text-slate-700">Neutral</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mt-4 bg-white/60 p-4 rounded-xl border border-white/50">
+                    <h4 class="text-xs font-bold text-slate-500 uppercase mb-2">Summary</h4>
+                    <p id="aiSummary" class="text-slate-700 italic text-sm"></p>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Right Column: History -->
+        <div class="lg:col-span-5 flex flex-col h-full">
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-100 flex flex-col h-[calc(100vh-8rem)] sticky top-24">
+                
+                <div class="p-5 border-b border-slate-100 bg-white rounded-t-2xl z-10">
+                    <h2 class="font-bold text-lg text-slate-800 mb-3">Past Entries</h2>
+                    <div class="relative">
+                        <i class="fa-solid fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400"></i>
+                        <input type="text" id="searchBox" onkeyup="renderHistory()" placeholder="Search memories..." class="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    </div>
+                </div>
+
+                <div id="historyList" class="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-50 rounded-b-2xl">
+                    <!-- History Items Injected Here -->
+                    <div class="text-center py-10 text-slate-400">
+                        <i class="fa-solid fa-book-open text-4xl mb-3 opacity-20"></i>
+                        <p>No entries yet. Start writing!</p>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Notification Toast -->
+    <div id="toast" class="fixed bottom-5 right-5 bg-slate-800 text-white px-6 py-3 rounded-lg shadow-xl transform translate-y-20 transition-transform duration-300 flex items-center gap-3 z-50">
+        <i class="fa-solid fa-check-circle text-green-400"></i>
+        <span id="toastMsg">Action Successful</span>
+    </div>
+
+    <script>
+        // --- Core Application Logic ---
+
+        const storageKey = 'ai_diary_entries';
+        let entries = {};
+        
+        // --- Stopwords for "AI" Analysis ---
+        const stopWords = new Set(["a","about","above","after","again","against","all","am","an","and","any","are","aren't","as","at","be","because","been","before","being","below","between","both","but","by","can't","cannot","could","couldn't","did","didn't","do","does","doesn't","doing","don't","down","during","each","few","for","from","further","had","hadn't","has","hasn't","have","haven't","having","he","he'd","he'll","he's","her","here","here's","hers","herself","him","himself","his","how","how's","i","i'd","i'll","i'm","i've","if","in","into","is","isn't","it","it's","its","itself","let's","me","more","most","mustn't","my","myself","no","nor","not","of","off","on","once","only","or","other","ought","our","ours","ourselves","out","over","own","same","shan't","she","she'd","she'll","she's","should","shouldn't","so","some","such","than","that","that's","the","their","theirs","them","themselves","then","there","there's","these","they","they'd","they'll","they're","they've","this","those","through","to","too","under","until","up","very","was","wasn't","we","we'd","we'll","we're","we've","were","weren't","what","what's","when","when's","where","where's","which","while","who","who's","whom","why","why's","with","won't","would","wouldn't","you","you'd","you'll","you're","you've","your","yours","yourself","yourselves"]);
+
+        // --- Sentiment Dictionary (Simplified) ---
+        const positiveWords = new Set(['happy', 'good', 'great', 'awesome', 'excellent', 'excited', 'love', 'wonderful', 'best', 'fantastic', 'joy', 'smile', 'calm', 'peaceful', 'productive', 'success', 'win', 'lucky', 'beautiful', 'glad', 'proud']);
+        const negativeWords = new Set(['sad', 'bad', 'terrible', 'awful', 'angry', 'hate', 'worst', 'pain', 'fail', 'loss', 'cry', 'anxious', 'stress', 'tired', 'bored', 'lonely', 'afraid', 'scared', 'upset', 'annoyed']);
+
+        // --- Initialization ---
+        document.addEventListener('DOMContentLoaded', () => {
+            loadEntries();
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('entryDate').value = today;
+            
+            // Auto-load today's entry if it exists
+            if (entries[today]) {
+                loadEntryIntoEditor(today);
+            }
+
+            // Word count listener
+            document.getElementById('entryContent').addEventListener('input', updateWordCount);
+        });
+
+        // --- Data Handling ---
+
+        function loadEntries() {
+            const stored = localStorage.getItem(storageKey);
+            if (stored) {
+                entries = JSON.parse(stored);
+            }
+            renderHistory();
+        }
+
+        function saveEntry() {
+            const date = document.getElementById('entryDate').value;
+            const content = document.getElementById('entryContent').value;
+
+            if (!date) {
+                showToast('Please select a date', true);
+                return;
+            }
+            if (!content.trim()) {
+                showToast('Diary entry cannot be empty', true);
+                return;
+            }
+
+            // Perform AI Analysis
+            const analysis = analyzeText(content);
+
+            entries[date] = {
+                content: content,
+                timestamp: Date.now(),
+                analysis: analysis
+            };
+
+            localStorage.setItem(storageKey, JSON.stringify(entries));
+            
+            showToast('Entry saved successfully!');
+            renderHistory();
+            displayAnalysis(analysis);
+        }
+
+        function deleteEntry(date, event) {
+            event.stopPropagation(); // Prevent loading the entry when clicking delete
+            if (confirm('Are you sure you want to delete this memory?')) {
+                delete entries[date];
+                localStorage.setItem(storageKey, JSON.stringify(entries));
+                renderHistory();
+                clearForm();
+                showToast('Entry deleted');
+            }
+        }
+
+        function clearForm() {
+            document.getElementById('entryContent').value = '';
+            document.getElementById('aiPanel').classList.add('hidden');
+            updateWordCount();
+        }
+
+        function loadEntryIntoEditor(date) {
+            if (entries[date]) {
+                document.getElementById('entryDate').value = date;
+                document.getElementById('entryContent').value = entries[date].content;
+                updateWordCount();
+                if(entries[date].analysis) {
+                    displayAnalysis(entries[date].analysis);
+                } else {
+                    // Backwards compatibility for entries before analysis was added
+                    const newAnalysis = analyzeText(entries[date].content);
+                    entries[date].analysis = newAnalysis; // Save it locally for next time
+                    displayAnalysis(newAnalysis);
+                }
+            }
+        }
+
+        // --- Simulated AI Logic ---
+
+        function analyzeText(text) {
+            const lowerText = text.toLowerCase();
+            const words = lowerText.match(/\b\w+\b/g) || [];
+            
+            // 1. Keyword Extraction (Frequency Analysis - Stop Words)
+            const wordCounts = {};
+            words.forEach(word => {
+                if (!stopWords.has(word) && word.length > 2) {
+                    wordCounts[word] = (wordCounts[word] || 0) + 1;
+                }
+            });
+
+            // Sort by frequency
+            const sortedWords = Object.keys(wordCounts).sort((a, b) => wordCounts[b] - wordCounts[a]);
+            const topKeywords = sortedWords.slice(0, 5);
+
+            // 2. Sentiment Analysis
+            let score = 0;
+            let hits = 0;
+            words.forEach(word => {
+                if (positiveWords.has(word)) { score += 1; hits++; }
+                if (negativeWords.has(word)) { score -= 1; hits++; }
+            });
+
+            // Normalize score (-1 to 1)
+            let normalizedScore = 0;
+            if (hits > 0) normalizedScore = score / hits;
+            
+            // 3. Summary Generation (First sentence + simple logic)
+            // A real AI would summarize. We will take the first meaningful sentence and clean it.
+            const sentences = text.match(/[^.!?]+[.!?]+/g) || [text];
+            let summary = sentences[0];
+            if (summary.length > 100) summary = summary.substring(0, 97) + '...';
+
+            return {
+                keywords: topKeywords,
+                sentimentScore: normalizedScore, // -1 (neg) to 1 (pos)
+                summary: summary
+            };
+        }
+
+        // --- UI Rendering ---
+
+        function displayAnalysis(analysis) {
+            const panel = document.getElementById('aiPanel');
+            const tagContainer = document.getElementById('keywordTags');
+            const summaryText = document.getElementById('aiSummary');
+            const bar = document.getElementById('sentimentBar');
+            const label = document.getElementById('sentimentLabel');
+            const icon = document.getElementById('sentimentIcon');
+
+            // Keywords
+            tagContainer.innerHTML = '';
+            if (analysis.keywords.length === 0) {
+                tagContainer.innerHTML = '<span class="text-xs text-slate-400">Not enough text to analyze</span>';
+            } else {
+                analysis.keywords.forEach(word => {
+                    const tag = document.createElement('span');
+                    tag.className = 'px-3 py-1 bg-white rounded-full text-xs font-medium text-indigo-600 border border-indigo-100 shadow-sm';
+                    tag.textContent = `#${word}`;
+                    tagContainer.appendChild(tag);
+                });
+            }
+
+            // Summary
+            summaryText.textContent = analysis.summary || "Write more to generate a summary.";
+
+            // Sentiment
+            // Map -1 to 1 range to 0% to 100%
+            const percentage = ((analysis.sentimentScore + 1) / 2) * 100;
+            bar.style.width = `${percentage}%`;
+
+            if (analysis.sentimentScore > 0.3) {
+                bar.className = 'h-2.5 rounded-full bg-green-500';
+                label.textContent = 'Positive';
+                icon.textContent = '😊';
+            } else if (analysis.sentimentScore < -0.3) {
+                bar.className = 'h-2.5 rounded-full bg-red-500';
+                label.textContent = 'Negative';
+                icon.textContent = '😔';
+            } else {
+                bar.className = 'h-2.5 rounded-full bg-indigo-500';
+                label.textContent = 'Neutral';
+                icon.textContent = '😐';
+            }
+
+            panel.classList.remove('hidden');
+        }
+
+        function renderHistory() {
+            const list = document.getElementById('historyList');
+            const searchTerm = document.getElementById('searchBox').value.toLowerCase();
+            list.innerHTML = '';
+
+            // Sort dates descending
+            const dates = Object.keys(entries).sort().reverse();
+
+            if (dates.length === 0) {
+                list.innerHTML = `
+                    <div class="text-center py-10 text-slate-400">
+                        <i class="fa-solid fa-book-open text-4xl mb-3 opacity-20"></i>
+                        <p>No entries yet.</p>
+                    </div>`;
+                return;
+            }
+
+            let found = false;
+
+            dates.forEach(date => {
+                const entry = entries[date];
+                const contentLower = entry.content.toLowerCase();
+                
+                // Simple search filter
+                if (searchTerm && !date.includes(searchTerm) && !contentLower.includes(searchTerm)) {
+                    return;
+                }
+                found = true;
+
+                const card = document.createElement('div');
+                card.className = 'bg-white p-4 rounded-xl border border-slate-100 shadow-sm hover:shadow-md transition cursor-pointer group relative';
+                card.onclick = () => loadEntryIntoEditor(date);
+
+                // Format Date nicely
+                const dateObj = new Date(date);
+                const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'short' });
+                const dayNum = dateObj.getDate();
+                const month = dateObj.toLocaleDateString('en-US', { month: 'short' });
+
+                // Preview text
+                const preview = entry.content.length > 60 ? entry.content.substring(0, 60) + '...' : entry.content;
+
+                // Mood Indicator (Color dot)
+                let moodColor = 'bg-slate-300';
+                if(entry.analysis) {
+                    if(entry.analysis.sentimentScore > 0.3) moodColor = 'bg-green-400';
+                    else if(entry.analysis.sentimentScore < -0.3) moodColor = 'bg-red-400';
+                    else moodColor = 'bg-indigo-400';
+                }
+
+                card.innerHTML = `
+                    <div class="flex items-start gap-3">
+                        <div class="flex flex-col items-center justify-center bg-slate-50 border border-slate-200 rounded-lg p-2 min-w-[3.5rem]">
+                            <span class="text-xs font-bold text-slate-500 uppercase">${month}</span>
+                            <span class="text-lg font-bold text-slate-800">${dayNum}</span>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <div class="flex justify-between items-center mb-1">
+                                <span class="text-xs font-medium text-slate-400">${dayName}, ${dateObj.getFullYear()}</span>
+                                <div class="w-2 h-2 rounded-full ${moodColor}" title="Mood"></div>
+                            </div>
+                            <p class="text-sm text-slate-600 line-clamp-2">${preview}</p>
+                            ${entry.analysis && entry.analysis.keywords.length ? 
+                                `<div class="mt-2 flex gap-1 flex-wrap">
+                                    ${entry.analysis.keywords.slice(0,2).map(k => `<span class="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded">${k}</span>`).join('')}
+                                </div>` : ''
+                            }
+                        </div>
+                        <button onclick="deleteEntry('${date}', event)" class="opacity-0 group-hover:opacity-100 transition absolute top-2 right-2 text-slate-300 hover:text-red-500 p-1">
+                            <i class="fa-solid fa-trash-can"></i>
+                        </button>
+                    </div>
+                `;
+                list.appendChild(card);
+            });
+
+            if (!found && searchTerm) {
+                list.innerHTML = `<div class="text-center py-4 text-slate-400">No matching entries found.</div>`;
+            }
+        }
+
+        // --- Utilities ---
+
+        function updateWordCount() {
+            const text = document.getElementById('entryContent').value;
+            const count = text.trim() === '' ? 0 : text.trim().split(/\s+/).length;
+            document.getElementById('wordCount').textContent = `${count} words`;
+        }
+
+        function showToast(message, isError = false) {
+            const toast = document.getElementById('toast');
+            const msgSpan = document.getElementById('toastMsg');
+            const icon = toast.querySelector('i');
+
+            msgSpan.textContent = message;
+            toast.classList.remove('translate-y-20');
+            
+            if (isError) {
+                icon.className = 'fa-solid fa-circle-exclamation text-red-400';
+            } else {
+                icon.className = 'fa-solid fa-check-circle text-green-400';
+            }
+
+            setTimeout(() => {
+                toast.classList.add('translate-y-20');
+            }, 3000);
+        }
+
+        function exportData() {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(entries, null, 2));
+            const downloadAnchorNode = document.createElement('a');
+            downloadAnchorNode.setAttribute("href", dataStr);
+            downloadAnchorNode.setAttribute("download", "diary_backup_" + new Date().toISOString().split('T')[0] + ".json");
+            document.body.appendChild(downloadAnchorNode);
+            downloadAnchorNode.click();
+            downloadAnchorNode.remove();
+        }
+        
+        // Simple Dark Mode Toggle Logic
+        let isDarkMode = false;
+        function toggleViewMode() {
+            isDarkMode = !isDarkMode;
+            const body = document.body;
+            const inputs = document.querySelectorAll('input, textarea');
+            const cards = document.querySelectorAll('.bg-white');
+            const btn = document.getElementById('viewModeBtn');
+            
+            if (isDarkMode) {
+                body.className = 'bg-slate-900 text-slate-100 min-h-screen flex flex-col';
+                inputs.forEach(el => {
+                    el.classList.add('bg-slate-800', 'border-slate-700', 'text-white');
+                    el.classList.remove('bg-slate-50', 'border-slate-200', 'text-slate-700');
+                });
+                cards.forEach(el => {
+                    el.classList.add('bg-slate-800', 'border-slate-700', 'text-white');
+                    el.classList.remove('bg-white', 'border-slate-100', 'text-slate-800');
+                });
+                btn.innerHTML = '<i class="fa-solid fa-sun text-yellow-400"></i>';
+            } else {
+                // Reload page to reset simply or toggle classes back (Resetting via reload is cheating, let's swap classes)
+                body.className = 'bg-slate-100 text-slate-800 min-h-screen flex flex-col';
+                inputs.forEach(el => {
+                    el.classList.remove('bg-slate-800', 'border-slate-700', 'text-white');
+                    el.classList.add('bg-slate-50', 'border-slate-200', 'text-slate-700');
+                });
+                cards.forEach(el => {
+                    el.classList.remove('bg-slate-800', 'border-slate-700', 'text-white');
+                    el.classList.add('bg-white', 'border-slate-100', 'text-slate-800');
+                });
+                btn.innerHTML = '<i class="fa-solid fa-moon"></i>';
+            }
+        }
+    </script>
+</body>
+</html>
